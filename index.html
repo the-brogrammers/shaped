@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Shaped</title>
+
+  <style>
+  html,
+  body {
+    color: #ffffff;
+    overflow: hidden;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: #fff;
+  }
+
+  canvas {
+    background-color: #000;
+  }
+
+  #gui-left {
+    position: absolute;
+    display: block;
+    top: 20px;
+    left: 20px;
+    width: 200px;
+    height: 100%;
+  }
+
+  #gui-right {
+    position: absolute;
+    display: block;
+    top: 20px;
+    right: 20px;
+    width: 200px;
+  }
+
+  #guess {
+    border: 1px solid #ededed;
+    outline: 0;
+    width: 190px;
+    font-size: 48px;
+    padding: 10px;
+    background-color: transparent;
+    color: #ffffff;
+  }
+
+  #pointsLabel {
+    font-size: 24px;
+  }
+
+  #action {
+    position: absolute;
+    display: block;
+    top: 140px;
+    left: 20px;
+    width: 200px;
+    font-size: 24px;
+  }
+  </style>
+</head>
+<body>
+  <div id="gui-left">
+    <input type="number" id="guess">
+    <button id="action">Start</button>
+  </div>
+  <div id="gui-right">
+    <div id="pointsLabel"></div>
+    <div id="levelLabel"></div>
+  </div>
+
+  <canvas id="device"></canvas>
+
+  <script>
+  var device = document.getElementById('device'),
+      guess = document.getElementById('guess'),
+      pointsLabel = document.getElementById('pointsLabel'),
+      levelLabel = document.getElementById('levelLabel'),
+      action = document.getElementById('action'),
+      ctx = device.getContext('2d'),
+      deviceWidth = document.body.clientWidth,
+      deviceHeight = document.body.clientHeight,
+      centerX = deviceWidth / 2,
+      centerY = deviceHeight / 2;
+
+  device.width = deviceWidth;
+  device.height = deviceHeight;
+
+  function plot(centerX, centerY, radius, segments, angle, stroke, fill) {
+    stroke = stroke || '#ffffff';
+    fill = fill || '#ffffff';
+
+    ctx.beginPath();
+    ctx.lineWidth = '2';
+    ctx.strokeStyle = stroke;
+    ctx.fillStyle = fill;
+
+    var angleIncrement = Math.PI * 2 / segments;
+    var sx = sy = null;
+
+    for(var s = 0; s < segments; s ++) {
+      var a = angle + angleIncrement * s;
+      var x = Math.cos(a) * radius + centerX;
+      var y = Math.sin(a) * radius + centerY;
+
+      if(s == 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+
+    ctx.closePath();
+    ctx.stroke();
+    ctx.fill();
+  }
+
+  // plot(centerX, centerY, 200, 40, Math.PI / 2, '#0E010A', '#ffffff');
+
+  var segments = [3, 4, 5, 6, 40];
+  var segmentCount = 0;
+  var angles = [3, Math.PI / 4 * 3, 5, 6, 40];
+  var angle = 0;
+  var radius = 50;
+  var answer = 0;
+  var maxAnswer = 180;
+  var guessShot = 0;
+  var guessRadius = 0;
+  var margin = 0;
+  var maxMargin = 50;
+  // Frame ounter for the expanding shape loop
+  var g = 0;
+  // Expanding factor
+  var gIncrement = 3;
+  var level = 0;
+  var maxLevel = 66;
+  var points = 0;
+  var pointsAvailable = 10;
+  var pause = false;
+  var clock = 0;
+  var timer = 0;
+  var maxTimer = 6000;
+
+  function onGuessKeyDown(e) {
+    switch(e.keyCode) {
+      case 13:
+        // Enter key
+        guessShot = guessDecrement = parseInt(e.target.value);
+        guessRadius = Math.floor(guessShot / 2 / Math.sin(Math.PI / segmentCount));
+        g = 0;
+        break;
+    }
+  }
+
+  guess.addEventListener('keydown', onGuessKeyDown);
+  next('Start game');
+
+  function shuffle() {
+    margin = Math.floor(maxMargin * (maxLevel - level) / maxLevel);
+    radius = margin + Math.round(Math.random() * maxAnswer);
+    var s = Math.floor(Math.random() * (segments.length - 1));
+    segmentCount = segments[s];
+    answer = Math.floor(2 * radius * Math.sin(Math.PI / segmentCount));
+    angle = Math.random() * Math.PI * 2;
+  }
+
+  function updateGui() {
+    levelLabel.innerText = 'Level: ' + (level + 1);
+    pointsLabel.innerText = points + ' points';
+  }
+
+  function lockField() {
+    guess.focus();
+  }
+
+  function next(label) {
+    action.innerText = label;
+    action.style.display = 'block';
+    guess.removeEventListener('blur', lockField);
+    action.focus();
+    guess.disabled = true;
+    pause = true;
+  }
+
+  function updateTimer(millis) {
+    console.log(Math.floor(millis / 1000));
+  }
+
+  action.onclick = function() {
+    action.style.display = 'none';
+    guess.value = '';
+    guess.disabled = false;
+    guess.focus();
+    guess.addEventListener('blur', lockField);
+    shuffle();
+    guessShot = g = 0;
+    pause = false;
+    updateGui();
+  }
+
+  function tick(d) {
+    requestAnimationFrame(tick);
+
+    if(pause) {
+      clock = d;
+      timer = 0;
+      return;
+    }
+
+    ctx.clearRect(0, 0, deviceWidth, deviceHeight);
+    plot(centerX, centerY, radius, segmentCount, angle, '#0E010A', '#ffffff');
+    timer = d - clock;
+    updateTimer(timer);
+
+    if(guessShot != 0) {
+      if(g < guessRadius) {
+        plot(centerX, centerY, g += gIncrement, segmentCount, angle, '#ffffff', '#000000');
+      } else {
+        g = guessRadius;
+
+        if(guessShot >= answer - margin && guessShot <= answer + margin) {
+          plot(centerX, centerY, g, segmentCount, angle, '#00ff00', '#00ff00');
+          var ratio = (margin - Math.abs(answer - guessShot)) / margin;
+          points += Math.ceil(ratio * pointsAvailable);
+          updateGui();
+          level ++;
+          next('Next level');
+        } else {
+          plot(centerX, centerY, g, segmentCount, angle, '#ff0000', '#ff0000');
+          level = points = 0;
+          next('Restart');
+        }
+      }
+    }
+
+    if(timer >= maxTimer) {
+      level = points = 0;
+      next('Restart');
+    }
+  }
+
+  updateGui();
+  tick();
+  </script>
+</body>
+</html>
