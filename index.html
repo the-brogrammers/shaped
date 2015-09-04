@@ -151,7 +151,10 @@ mixpanel.init("f4d62bdaafaa5beda301aabcf35e2280");</script>
         // Enter key
         guessShot = guessDecrement = parseInt(e.target.value);
         guessRadius = Math.floor(guessShot / 2 / Math.sin(Math.PI / segmentCount));
-        mixpanel.track('Guessed ', guessShot, answer);
+        mixpanel.track('Guessed ', {
+          guess: guessShot,
+          answer: answer
+        });
         g = 0;
         break;
     }
@@ -201,6 +204,9 @@ mixpanel.init("f4d62bdaafaa5beda301aabcf35e2280");</script>
     guessShot = g = 0;
     pause = false;
     updateGui();
+    mixpanel.track('Start level', {
+      level: level
+    });
   }
 
   function tick(d) {
@@ -230,12 +236,16 @@ mixpanel.init("f4d62bdaafaa5beda301aabcf35e2280");</script>
           updateGui();
           level ++;
           next('Next level');
-          mixpanel.track('Got to level ' + level);
+          mixpanel.track('End level', {
+            level: level - 1
+          });
         } else {
           plot(centerX, centerY, g, segmentCount, angle, '#ff0000', '#ff0000');
           level = points = 0;
           next('Restart');
-          mixpanel.track('Lost game because of a wrong guess');
+          mixpanel.track('Lost game', {
+            cause: 'wrong guess'
+          });
         }
       }
     }
@@ -243,7 +253,9 @@ mixpanel.init("f4d62bdaafaa5beda301aabcf35e2280");</script>
     if(timer >= maxTimer) {
       level = points = 0;
       next('Restart');
-      mixpanel.track('Lost game because of time over');
+      mixpanel.track('Lost game', {
+        cause: 'time over'
+      });
     }
   }
 
